@@ -15,6 +15,11 @@ Agentic RAG Analytics Page
 ![Agentic RAG UI Analytics](./assets/analytics.png)
 ---
 
+---
+Langhgraph Workflow
+![Agentic Langgraph Workflow](./assets/workflow.png)
+---
+
 ## 🚀 Overview
 
 This application enables users to interactively query AWS documentation using an intelligent agentic architecture. The GUI is designed to streamline the configuration and visualization of a multi-agent RAG system using:
