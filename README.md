@@ -4,10 +4,12 @@
 Welcome to the **Agentic RAG System**, a Flask-based interactive interface that leverages **Agentic Retrieval-Augmented Generation (RAG)** for intelligent understanding and querying of AWS documentation. This system integrates configurable LLMs, agent workflows, and dual-vector knowledge routing to handle complex enterprise DataOps and ITOps queries.
 
 ---
+Agentic RAG Home Page
 ![Agentic RAG UI Home](./assets/interface.png)
 ---
 
 ---
+Agentic RAG Analytics Page
 ![Agentic RAG UI Analytics](./assets/analytics.png)
 ---
 
