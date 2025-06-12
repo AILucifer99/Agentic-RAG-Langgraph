@@ -1,0 +1,1571 @@
+<!-- <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS RAG Assistant - Adaptive Retrieval System</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 30px 0;
+        }
+
+        .header h1 {
+            color: white;
+            font-size: 3rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            color: rgba(255,255,255,0.9);
+            font-size: 1.2rem;
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .main-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 25px;
+            background: linear-gradient(90deg, #4CAF50, #45a049);
+            border-radius: 15px;
+            margin-bottom: 30px;
+            color: white;
+        }
+
+        .status-bar.not-initialized {
+            background: linear-gradient(90deg, #ff6b6b, #ee5a52);
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 600;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: white;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .init-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .init-btn {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 25px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        .init-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+        }
+
+        .init-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .query-section {
+            margin-bottom: 30px;
+        }
+
+        .query-section h2 {
+            color: #333;
+            margin-bottom: 20px;
+            font-size: 1.8rem;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .query-input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 15px;
+            font-size: 1rem;
+            outline: none;
+            transition: all 0.3s ease;
+            min-height: 120px;
+            resize: vertical;
+            font-family: inherit;
+        }
+
+        .query-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .query-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 15px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            height: fit-content;
+            min-width: 120px;
+        }
+
+        .query-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .query-btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .example-queries {
+            margin-bottom: 20px;
+        }
+
+        .example-queries h3 {
+            color: #555;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+        }
+
+        .example-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+
+        .example-chip {
+            background: linear-gradient(45deg, #f8f9fa, #e9ecef);
+            border: 1px solid #dee2e6;
+            border-radius: 20px;
+            padding: 8px 16px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            color: #495057;
+        }
+
+        .example-chip:hover {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            transform: translateY(-1px);
+        }
+
+        .result-section {
+            margin-top: 30px;
+        }
+
+        .result-card {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border-left: 5px solid #667eea;
+            margin-top: 20px;
+        }
+
+        .result-card.error {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: between;
+            margin-bottom: 15px;
+        }
+
+        .result-header h3 {
+            color: #333;
+            font-size: 1.3rem;
+            margin-bottom: 0;
+        }
+
+        .result-content {
+            line-height: 1.6;
+            color: #555;
+            white-space: pre-wrap;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            border: 1px solid #e0e0e0;
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            padding: 20px;
+            color: #667eea;
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: rgba(255,255,255,0.8);
+            margin-top: 40px;
+        }
+
+        .aws-services {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+
+        .service-badge {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 10px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .main-card {
+                padding: 20px;
+            }
+            
+            .input-group {
+                flex-direction: column;
+            }
+            
+            .query-btn {
+                width: 100%;
+            }
+            
+            .example-chips {
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-cloud"></i> AWS RAG Assistant</h1>
+            <p>Intelligent Retrieval-Augmented Generation for AWS Ecosystem</p>
+            <div class="aws-services">
+                <span class="service-badge"><i class="fas fa-database"></i> S3</span>
+                <span class="service-badge"><i class="fas fa-code"></i> Lambda</span>
+                <span class="service-badge"><i class="fas fa-search"></i> OpenSearch</span>
+                <span class="service-badge"><i class="fas fa-brain"></i> Bedrock</span>
+                <span class="service-badge"><i class="fas fa-network-wired"></i> API Gateway</span>
+            </div>
+        </div>
+
+        <div class="main-card">
+            <div class="status-bar" id="statusBar">
+                <div class="status-indicator">
+                    <div class="status-dot"></div>
+                    <span id="statusText">System Status: Not Initialized</span>
+                </div>
+                <div>
+                    <i class="fas fa-cog"></i>
+                </div>
+            </div>
+
+            <div class="init-section">
+                <button class="init-btn" id="initBtn" onclick="initializeSystem()">
+                    <i class="fas fa-rocket"></i> Initialize RAG System
+                </button>
+            </div>
+
+            <div class="query-section" id="querySection" style="display: none;">
+                <h2><i class="fas fa-question-circle"></i> Ask Your AWS Question</h2>
+                
+                <div class="example-queries">
+                    <h3>Example Queries:</h3>
+                    <div class="example-chips">
+                        <span class="example-chip" onclick="setQuery(this.textContent)">Guide me in developing a RAG solution using S3, OpenSearch, and Lambda</span>
+                        <span class="example-chip" onclick="setQuery(this.textContent)">How to set up AWS Bedrock for text generation?</span>
+                        <span class="example-chip" onclick="setQuery(this.textContent)">Best practices for AWS Lambda serverless architecture</span>
+                        <span class="example-chip" onclick="setQuery(this.textContent)">Implement cost-effective S3 storage strategies</span>
+                        <span class="example-chip" onclick="setQuery(this.textContent)">Design scalable API Gateway architecture</span>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <textarea 
+                        class="query-input" 
+                        id="queryInput" 
+                        placeholder="Enter your AWS-related question here... (e.g., How to implement a serverless RAG system using AWS services?)"
+                    ></textarea>
+                    <button class="query-btn" id="queryBtn" onclick="processQuery()">
+                        <i class="fas fa-paper-plane"></i> Ask
+                    </button>
+                </div>
+            </div>
+
+            <div class="result-section" id="resultSection" style="display: none;">
+                <div class="result-card" id="resultCard">
+                    <div class="result-header">
+                        <h3 id="resultTitle">Response</h3>
+                    </div>
+                    <div class="result-content" id="resultContent"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p><i class="fas fa-code"></i> Built with Flask & LangGraph | AWS Solution Architecture Assistant</p>
+    </div>
+
+    <script>
+        let systemInitialized = false;
+
+        async function initializeSystem() {
+            const initBtn = document.getElementById('initBtn');
+            const statusBar = document.getElementById('statusBar');
+            const statusText = document.getElementById('statusText');
+            
+            initBtn.disabled = true;
+            initBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Initializing...';
+            statusText.textContent = 'System Status: Initializing...';
+            
+            try {
+                const response = await fetch('/initialize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    systemInitialized = true;
+                    statusBar.classList.remove('not-initialized');
+                    statusText.textContent = 'System Status: Ready';
+                    initBtn.innerHTML = '<i class="fas fa-check"></i> System Ready!';
+                    initBtn.style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+                    
+                    // Show query section
+                    document.getElementById('querySection').style.display = 'block';
+                    
+                    // Auto-focus on query input
+                    setTimeout(() => {
+                        document.getElementById('queryInput').focus();
+                    }, 500);
+                    
+                } else {
+                    throw new Error(data.message);
+                }
+                
+            } catch (error) {
+                statusBar.classList.add('not-initialized');
+                statusText.textContent = 'System Status: Initialization Failed';
+                initBtn.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Retry Initialization';
+                initBtn.disabled = false;
+                
+                showError('Initialization Error', error.message);
+            }
+        }
+
+        async function processQuery() {
+            const queryInput = document.getElementById('queryInput');
+            const queryBtn = document.getElementById('queryBtn');
+            const resultSection = document.getElementById('resultSection');
+            const resultContent = document.getElementById('resultContent');
+            const resultCard = document.getElementById('resultCard');
+            const resultTitle = document.getElementById('resultTitle');
+            
+            if (!systemInitialized) {
+                alert('Please initialize the system first!');
+                return;
+            }
+            
+            const question = queryInput.value.trim();
+            if (!question) {
+                alert('Please enter a question!');
+                return;
+            }
+            
+            queryBtn.disabled = true;
+            queryBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Processing...';
+            
+            // Show loading state
+            resultSection.style.display = 'block';
+            resultCard.classList.remove('error');
+            resultTitle.textContent = 'Processing...';
+            resultContent.innerHTML = `
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <span>Analyzing your question and retrieving relevant AWS documentation...</span>
+                </div>
+            `;
+            
+            try {
+                const response = await fetch('/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ question: question })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    resultTitle.textContent = 'AWS Solution Architecture Response';
+                    resultContent.textContent = data.result;
+                } else {
+                    throw new Error(data.error);
+                }
+                
+            } catch (error) {
+                resultCard.classList.add('error');
+                resultTitle.textContent = 'Error';
+                resultContent.textContent = `Error processing your query: ${error.message}`;
+            } finally {
+                queryBtn.disabled = false;
+                queryBtn.innerHTML = '<i class="fas fa-paper-plane"></i> Ask';
+            }
+        }
+
+        function setQuery(query) {
+            document.getElementById('queryInput').value = query;
+            document.getElementById('queryInput').focus();
+        }
+
+        function showError(title, message) {
+            const resultSection = document.getElementById('resultSection');
+            const resultCard = document.getElementById('resultCard');
+            const resultTitle = document.getElementById('resultTitle');
+            const resultContent = document.getElementById('resultContent');
+            
+            resultSection.style.display = 'block';
+            resultCard.classList.add('error');
+            resultTitle.textContent = title;
+            resultContent.textContent = message;
+        }
+
+        // Handle Enter key in textarea (Ctrl+Enter to submit)
+        document.getElementById('queryInput').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                processQuery();
+            }
+        });
+
+        // Check system status on page load
+        window.addEventListener('load', async function() {
+            try {
+                const response = await fetch('/status');
+                const data = await response.json();
+                
+                if (data.initialized) {
+                    systemInitialized = true;
+                    document.getElementById('statusBar').classList.remove('not-initialized');
+                    document.getElementById('statusText').textContent = 'System Status: Ready';
+                    document.getElementById('initBtn').innerHTML = '<i class="fas fa-check"></i> System Ready!';
+                    document.getElementById('initBtn').style.background = 'linear-gradient(45deg, #4CAF50, #45a049)';
+                    document.getElementById('querySection').style.display = 'block';
+                }
+            } catch (error) {
+                console.log('Status check failed:', error);
+            }
+        });
+    </script>
+</body>
+</html> -->
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic RAG System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.1/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-primary: #0a0e1a;
+            --bg-secondary: #1a1f2e;
+            --bg-tertiary: #252b3d;
+            --accent-primary: #00d4ff;
+            --accent-secondary: #7c3aed;
+            --accent-success: #10b981;
+            --accent-warning: #f59e0b;
+            --accent-error: #ef4444;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --border-color: #334155;
+            --glassmorphism-bg: rgba(255, 255, 255, 0.05);
+            --glassmorphism-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, var(--bg-primary) 0%, #1e293b 100%);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Animated background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: 
+                radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 80% 20%, rgba(255, 119, 198, 0.3) 0%, transparent 50%),
+                radial-gradient(circle at 40% 40%, rgba(120, 219, 255, 0.2) 0%, transparent 50%);
+            z-index: -1;
+            animation: backgroundPulse 20s ease-in-out infinite;
+        }
+
+        @keyframes backgroundPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+            display: grid;
+            grid-template-columns: 320px 1fr 350px;
+            grid-template-rows: auto 1fr;
+            gap: 20px;
+            height: 100vh;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: var(--glassmorphism-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glassmorphism-border);
+            border-radius: 20px;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo i {
+            font-size: 32px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            animation: glow 2s ease-in-out infinite alternate;
+        }
+
+        @keyframes glow {
+            from { filter: drop-shadow(0 0 5px var(--accent-primary)); }
+            to { filter: drop-shadow(0 0 20px var(--accent-primary)); }
+        }
+
+        .logo h1 {
+            font-size: 28px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 20px;
+            background: rgba(16, 185, 129, 0.1);
+            border: 1px solid var(--accent-success);
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .status-indicator.initializing {
+            background: rgba(245, 158, 11, 0.1);
+            border-color: var(--accent-warning);
+        }
+
+        .status-indicator.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-color: var(--accent-error);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--accent-success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.2); opacity: 0.7; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .sidebar {
+            background: var(--glassmorphism-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glassmorphism-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow-y: auto;
+        }
+
+        .sidebar h2 {
+            margin-bottom: 20px;
+            color: var(--accent-primary);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .config-section {
+            margin-bottom: 25px;
+        }
+
+        .config-section label {
+            display: block;
+            margin-bottom: 8px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .config-section select,
+        .config-section input {
+            width: 100%;
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .config-section select:focus,
+        .config-section input:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .btn-primary {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.3);
+        }
+
+        .btn-primary:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            padding: 10px 20px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            color: var(--text-primary);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-secondary:hover {
+            background: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            background: var(--glassmorphism-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glassmorphism-border);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .chat-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .chat-messages {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            max-height: calc(100vh - 200px);
+        }
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 15px;
+            animation: messageSlide 0.3s ease-out;
+        }
+
+        @keyframes messageSlide {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            flex-direction: row-reverse;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+        }
+
+        .message.assistant .message-avatar {
+            background: linear-gradient(135deg, var(--accent-success), #22c55e);
+        }
+
+        .message-content {
+            flex: 1;
+            background: var(--bg-tertiary);
+            padding: 15px 20px;
+            border-radius: 20px;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .message.user .message-content {
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            margin-left: 50px;
+        }
+
+        .message.assistant .message-content {
+            margin-right: 50px;
+        }
+
+        .message-content::before {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 0;
+            border: 8px solid transparent;
+        }
+
+        .message.user .message-content::before {
+            right: -15px;
+            top: 15px;
+            border-left-color: var(--accent-primary);
+        }
+
+        .message.assistant .message-content::before {
+            left: -15px;
+            top: 15px;
+            border-right-color: var(--bg-tertiary);
+        }
+
+        .message-meta {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .chat-input-container {
+            padding: 20px;
+            border-top: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+
+        .chat-input {
+            display: flex;
+            gap: 15px;
+            align-items: end;
+        }
+
+        .chat-input textarea {
+            flex: 1;
+            padding: 15px;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-color);
+            border-radius: 15px;
+            color: var(--text-primary);
+            resize: none;
+            min-height: 50px;
+            max-height: 120px;
+            font-family: inherit;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .chat-input textarea:focus {
+            outline: none;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1);
+        }
+
+        .chat-input button {
+            padding: 15px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border: none;
+            border-radius: 15px;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 50px;
+        }
+
+        .chat-input button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+        }
+
+        .chat-input button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .workflow-panel {
+            background: var(--glassmorphism-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glassmorphism-border);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .workflow-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .workflow-header h2 {
+            color: var(--accent-primary);
+            font-size: 18px;
+            font-weight: 600;
+        }
+
+        .workflow-steps {
+            flex: 1;
+            overflow-y: auto;
+        }
+
+        .workflow-step {
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 12px;
+            border-left: 4px solid;
+            animation: stepSlide 0.3s ease-out;
+            transition: all 0.3s ease;
+        }
+
+        @keyframes stepSlide {
+            from { opacity: 0; transform: translateX(20px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+
+        .workflow-step.running {
+            background: rgba(245, 158, 11, 0.1);
+            border-left-color: var(--accent-warning);
+        }
+
+        .workflow-step.completed {
+            background: rgba(16, 185, 129, 0.1);
+            border-left-color: var(--accent-success);
+        }
+
+        .workflow-step.error {
+            background: rgba(239, 68, 68, 0.1);
+            border-left-color: var(--accent-error);
+        }
+
+        .workflow-step-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .workflow-step-title {
+            font-weight: 600;
+            font-size: 14px;
+        }
+
+        .workflow-step-time {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-left: auto;
+        }
+
+        .workflow-step-details {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.4;
+        }
+
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-muted);
+            text-align: center;
+        }
+
+        .empty-state i {
+            font-size: 48px;
+            margin-bottom: 15px;
+            opacity: 0.5;
+        }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid var(--text-muted);
+            border-radius: 50%;
+            border-top-color: var(--accent-primary);
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            transform: translateX(400px);
+            transition: transform 0.3s ease;
+        }
+
+        .notification.show {
+            transform: translateX(0);
+        }
+
+        .notification.success {
+            background: var(--accent-success);
+        }
+
+        .notification.error {
+            background: var(--accent-error);
+        }
+
+        .notification.warning {
+            background: var(--accent-warning);
+        }
+
+        .analytics-link {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            text-decoration: none;
+            font-size: 24px;
+            box-shadow: 0 5px 20px rgba(0, 212, 255, 0.3);
+            transition: all 0.3s ease;
+            z-index: 100;
+        }
+
+        .analytics-link:hover {
+            transform: translateY(-5px) scale(1.1);
+            box-shadow: 0 10px 40px rgba(0, 212, 255, 0.5);
+        }
+
+        /* Responsive Design */
+        @media (max-width: 1200px) {
+            .container {
+                grid-template-columns: 300px 1fr;
+                grid-template-rows: auto auto 1fr;
+            }
+            
+            .workflow-panel {
+                grid-column: 1 / -1;
+                max-height: 300px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                grid-template-columns: 1fr;
+                padding: 10px;
+                gap: 15px;
+            }
+            
+            .header {
+                padding: 15px;
+            }
+            
+            .logo h1 {
+                font-size: 20px;
+            }
+            
+            .sidebar {
+                order: 3;
+            }
+            
+            .workflow-panel {
+                order: 2;
+                max-height: 250px;
+            }
+        }
+
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--accent-primary);
+            border-radius: 3px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-secondary);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-robot"></i>
+                <h1>Agentic RAG System</h1>
+            </div>
+            <div class="status-indicator" id="statusIndicator">
+                <div class="status-dot"></div>
+                <span id="statusText">Not Initialized</span>
+            </div>
+        </header>
+
+        <!-- Sidebar Configuration -->
+        <aside class="sidebar">
+            <h2><i class="fas fa-cog"></i> Configuration</h2>
+            
+            <div class="config-section">
+                <label for="modelProvider">Model Provider</label>
+                <select id="modelProvider">
+                    <option value="Google">Google Gemini</option>
+                    <option value="OpenAI">OpenAI GPT</option>
+                </select>
+            </div>
+
+            <div class="config-section">
+                <label for="temperature">Temperature <span id="tempValue">0.2</span></label>
+                <input type="range" id="temperature" min="0" max="1" step="0.1" value="0.2">
+            </div>
+
+            <div class="config-section">
+                <label for="topP">Top P <span id="topPValue">0.8</span></label>
+                <input type="range" id="topP" min="0" max="1" step="0.1" value="0.8">
+            </div>
+
+            <div class="config-section">
+                <label for="maxTokens">Max Tokens</label>
+                <input type="number" id="maxTokens" min="50" max="2048" step="50" value="512">
+            </div>
+
+            <button class="btn-primary" id="initializeBtn">
+                <span id="initBtnText">Initialize Pipeline</span>
+                <div class="loading-spinner" id="initSpinner" style="display: none;"></div>
+            </button>
+
+            <!-- <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border-color);">
+                <a href="/analytics" class="btn-secondary">
+                    <i class="fas fa-chart-line"></i>
+                    Analytics Dashboard
+                </a>
+            </div> -->
+        </aside>
+
+        <!-- Chat Interface -->
+        <main class="chat-container">
+            <div class="chat-header">
+                <h2><i class="fas fa-comments"></i> Chat Interface</h2>
+                <button class="btn-secondary" id="clearChat">
+                    <i class="fas fa-trash"></i>
+                    Clear
+                </button>
+            </div>
+            
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-state">
+                    <i class="fas fa-robot"></i>
+                    <p>Welcome! Initialize the pipeline and start asking your DataOps or ITOps questions.</p>
+                </div>
+            </div>
+
+            <div class="chat-input-container">
+                <div class="chat-input">
+                    <textarea 
+                        id="messageInput" 
+                        placeholder="Ask your DataOps or ITOps question..."
+                        rows="1"></textarea>
+                    <button id="sendBtn" disabled>
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- Workflow Panel -->
+        <aside class="workflow-panel">
+            <div class="workflow-header">
+                <h2><i class="fas fa-project-diagram"></i> Agent Workflow</h2>
+                <button class="btn-secondary" id="clearWorkflow" style="padding: 5px 10px; font-size: 12px;">
+                    <i class="fas fa-eraser"></i>
+                </button>
+            </div>
+            
+            <div class="workflow-steps" id="workflowSteps">
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <p>Agent workflow will appear here when you submit a query</p>
+                </div>
+            </div>
+        </aside>
+    </div>
+
+    <!-- Analytics Floating Button -->
+    <a href="/analytics" class="analytics-link" title="View Analytics">
+        <i class="fas fa-chart-bar"></i>
+    </a>
+
+    <!-- Notification Container -->
+    <div id="notification" class="notification"></div>
+
+    <script>
+        // Global variables
+        let socket;
+        let isInitialized = false;
+        let isProcessing = false;
+
+        // Initialize Socket.IO
+        function initializeSocket() {
+            socket = io();
+            
+            socket.on('connect', function() {
+                console.log('Connected to server');
+            });
+
+            socket.on('agent_step', function(data) {
+                addWorkflowStep(data);
+            });
+
+            socket.on('disconnect', function() {
+                console.log('Disconnected from server');
+            });
+        }
+
+        // Show notification
+        function showNotification(message, type = 'success') {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type}`;
+            notification.classList.add('show');
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        // Update status indicator
+        function updateStatus(status, text) {
+            const indicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            indicator.className = `status-indicator ${status}`;
+            statusText.textContent = text;
+        }
+
+        // Initialize pipeline
+        async function initializePipeline() {
+            const initBtn = document.getElementById('initializeBtn');
+            const initBtnText = document.getElementById('initBtnText');
+            const initSpinner = document.getElementById('initSpinner');
+            
+            // Show loading state
+            initBtn.disabled = true;
+            initBtnText.textContent = 'Initializing...';
+            initSpinner.style.display = 'inline-block';
+            updateStatus('initializing', 'Initializing...');
+
+            const config = {
+                model_provider: document.getElementById('modelProvider').value,
+                temperature: parseFloat(document.getElementById('temperature').value),
+                top_p: parseFloat(document.getElementById('topP').value),
+                max_tokens: parseInt(document.getElementById('maxTokens').value)
+            };
+
+            try {
+                const response = await fetch('/api/initialize', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(config)
+                });
+
+                const result = await response.json();
+
+                if (result.status === 'success') {
+                    isInitialized = true;
+                    updateStatus('', 'Ready');
+                    document.getElementById('sendBtn').disabled = false;
+                    showNotification('Pipeline initialized successfully!');
+                } else {
+                    throw new Error(result.message);
+                }
+            } catch (error) {
+                updateStatus('error', 'Error');
+                showNotification(`Initialization failed: ${error.message}`, 'error');
+            } finally {
+                // Reset button state
+                initBtn.disabled = false;
+                initBtnText.textContent = 'Initialize Pipeline';
+                initSpinner.style.display = 'none';
+            }
+        }
+
+        // Add message to chat
+        function addMessage(content, role, metadata = {}) {
+            const chatMessages = document.getElementById('chatMessages');
+            
+            // Remove empty state if present
+            const emptyState = chatMessages.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.innerHTML = role === 'user' ? '<i class="fas fa-user"></i>' : '<i class="fas fa-robot"></i>';
+            
+            const messageContent = document.createElement('div');
+            messageContent.className = 'message-content';
+            messageContent.innerHTML = content;
+            
+            if (metadata.route || metadata.confidence) {
+                const meta = document.createElement('div');
+                meta.className = 'message-meta';
+                meta.innerHTML = `
+                    <span>${new Date().toLocaleTimeString()}</span>
+                    ${metadata.route ? `<span>Route: ${metadata.route.toUpperCase()} (${(metadata.confidence * 100).toFixed(0)}%)</span>` : ''}
+                `;
+                messageContent.appendChild(meta);
+            }
+            
+            messageDiv.appendChild(avatar);
+            messageDiv.appendChild(messageContent);
+            
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        // Add workflow step
+        function addWorkflowStep(stepData) {
+            const workflowSteps = document.getElementById('workflowSteps');
+            
+            // Remove empty state if present
+            const emptyState = workflowSteps.querySelector('.empty-state');
+            if (emptyState) {
+                emptyState.remove();
+            }
+
+            const stepDiv = document.createElement('div');
+            stepDiv.className = `workflow-step ${stepData.status}`;
+            
+            stepDiv.innerHTML = `
+                <div class="workflow-step-header">
+                    <div class="workflow-step-title">${stepData.step}</div>
+                    <div class="workflow-step-time">${stepData.timestamp}</div>
+                </div>
+                <div class="workflow-step-details">${stepData.details}</div>
+            `;
+            
+            workflowSteps.appendChild(stepDiv);
+            workflowSteps.scrollTop = workflowSteps.scrollHeight;
+        }
+
+        // Send message
+        async function sendMessage() {
+            const messageInput = document.getElementById('messageInput');
+            const sendBtn = document.getElementById('sendBtn');
+            const message = messageInput.value.trim();
+
+            if (!message || !isInitialized || isProcessing) return;
+
+            isProcessing = true;
+            sendBtn.disabled = true;
+            
+            // Add user message
+            addMessage(message, 'user');
+            messageInput.value = '';
+            
+            // Clear previous workflow steps
+            const workflowSteps = document.getElementById('workflowSteps');
+            workflowSteps.innerHTML = '';
+
+            try {
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ query: message })
+                });
+
+                const result = await response.json();
+
+                if (result.error) {
+                    throw new Error(result.error);
+                }
+
+                // Add assistant response
+                addMessage(result.response, 'assistant', {
+                    route: result.route,
+                    confidence: result.confidence
+                });
+
+            } catch (error) {
+                addMessage(`Sorry, I encountered an error: ${error.message}`, 'assistant');
+                showNotification(`Error: ${error.message}`, 'error');
+            } finally {
+                isProcessing = false;
+                sendBtn.disabled = false;
+            }
+        }
+
+        // Clear chat
+        function clearChat() {
+            const chatMessages = document.getElementById('chatMessages');
+            chatMessages.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-robot"></i>
+                    <p>Chat cleared. Start a new conversation!</p>
+                </div>
+            `;
+        }
+
+        // Clear workflow
+        function clearWorkflow() {
+            const workflowSteps = document.getElementById('workflowSteps');
+            workflowSteps.innerHTML = `
+                <div class="empty-state">
+                    <i class="fas fa-project-diagram"></i>
+                    <p>Agent workflow will appear here when you submit a query</p>
+                </div>
+            `;
+        }
+
+        // Auto-resize textarea
+        function autoResize(textarea) {
+            textarea.style.height = 'auto';
+            textarea.style.height = Math.min(textarea.scrollHeight, 120) + 'px';
+        }
+
+        // Event listeners
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize socket connection
+            initializeSocket();
+
+            // Range input updates
+            document.getElementById('temperature').addEventListener('input', function() {
+                document.getElementById('tempValue').textContent = this.value;
+            });
+
+            document.getElementById('topP').addEventListener('input', function() {
+                document.getElementById('topPValue').textContent = this.value;
+            });
+
+            // Initialize button
+            document.getElementById('initializeBtn').addEventListener('click', initializePipeline);
+
+            // Send message button
+            document.getElementById('sendBtn').addEventListener('click', sendMessage);
+
+            // Message input
+            const messageInput = document.getElementById('messageInput');
+            messageInput.addEventListener('input', function() {
+                autoResize(this);
+            });
+
+            messageInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    sendMessage();
+                }
+            });
+
+            // Clear buttons
+            document.getElementById('clearChat').addEventListener('click', clearChat);
+            document.getElementById('clearWorkflow').addEventListener('click', clearWorkflow);
+        });
+    </script>
+</body>
+</html>

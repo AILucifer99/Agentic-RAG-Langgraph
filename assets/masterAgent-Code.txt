@@ -1,0 +1,357 @@
+from vectorStore.vectorstoreCreation import createVectorStoreAndLLMFunctionForPDFFiles
+from langgraph.graph import (
+    END, 
+    StateGraph, 
+    START
+)
+from langchain.tools.retriever import create_retriever_tool
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+from pydantic import BaseModel, Field
+
+from typing import (
+    TypedDict, 
+    List
+)
+
+
+def createAgenticRAGAWSData(agent_behavior_prompt, **kwargs) :
+    if kwargs["parse_function"] :
+        llm = kwargs["llm_model"]
+        retriever = kwargs["retriever"]
+        logger = kwargs["application_logger"]
+        retriever_tool = create_retriever_tool(
+            retriever,
+            "retrieve_aws_documents",
+            """Search and return information about the documentation of certain AWS services. 
+            The supported services are - AWS S3, AWS Lambda, AWS Opensearch, AWS Bedrock 
+            and AWS API GAteway.""",
+        )
+
+        tools = [retriever_tool]
+
+
+        # Data model
+        class GradeDocuments(BaseModel):
+            """Binary score for relevance check on retrieved documents."""
+
+            binary_score: str = Field(
+                description="Documents are relevant to the question, 'yes' or 'no'"
+            )
+
+        # LLM with function call
+        structured_llm_grader = llm.with_structured_output(GradeDocuments)
+        # Prompt
+        system = """You are a grader checking if a document is relevant to a user’s question.
+        The check has to be done very strictly. If the document has words or meanings related to the question,
+        mark it as relevant. Give a simple 'yes' or 'no' answer to show if the document is relevant or not."""
+            
+        grade_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system),
+                ("human", "Retrieved document: \n\n {document} \n\n User question: {question}"),
+            ]
+        )
+
+        my_retrieval_grader = grade_prompt | structured_llm_grader
+
+
+        generationPrompt = agent_behavior_prompt
+
+        rag_chain = PromptTemplate.from_template(generationPrompt) | llm 
+
+
+        # Data model
+        class GradeHallucinations(BaseModel):
+            """Binary score for hallucination present in generation answer."""
+
+            binary_score: str = Field(
+                description="Answer is grounded in the facts, 'yes' or 'no'"
+            )
+
+        # LLM with function call
+        structured_llm_grader = llm.with_structured_output(GradeHallucinations)
+
+        # Prompt
+        system = """You are a grader checking if an LLM generation is grounded in or supported by a set of retrieved facts.  
+        Give a simple 'yes' or 'no' answer. 'Yes' means the generation is grounded in or supported by a set of retrieved the facts."""
+        hallucination_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system),
+                ("human", "Set of facts: \n\n {documents} \n\n LLM generation: {generation}"),
+            ]
+        )
+
+        hallucinations_grader = hallucination_prompt | structured_llm_grader
+
+
+        ### Answer Grader
+        # Data model
+        class GradeAnswer(BaseModel):
+            """Binary score to assess answer addresses question."""
+
+            binary_score: str = Field(
+                description="Answer addresses the question, 'yes' or 'no'"
+            )
+
+
+        # LLM with function call
+        structured_llm_grader = llm.with_structured_output(GradeAnswer)
+
+        # Prompt
+        system = """You are a grader assessing whether an answer addresses / resolves a question \n 
+            Give a binary score 'yes' or 'no'. Yes' means that the answer resolves the question."""
+        answer_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system),
+                ("human", "User question: \n\n {question} \n\n LLM generation: {generation}"),
+            ]
+        )
+
+        answer_grader = answer_prompt | structured_llm_grader
+
+        system = """You are a question re-writer that converts an input question into a better optimized version for vector store retrieval document.  
+        You are given both a question and a document.  
+        - First, check if the question is relevant to the document by identifying a connection or relevance between them.  
+        - If there is a little relevancy, rewrite the question based on the semantic intent of the question and the context of the document.  
+        - If no relevance is found, simply return this single word "question not relevant." dont return the entire phrase 
+        Your goal is to ensure the rewritten question aligns well with the document for better retrieval."""
+            
+        re_write_prompt = ChatPromptTemplate.from_messages(
+            [
+                ("system", system),
+                (
+                    "human","""Here is the initial question: \n\n {question} \n,
+                    Here is the document: \n\n {documents} \n ,
+                    Formulate an improved question. if possible other return 'question not relevant'."""
+                ),
+            ]
+        )
+        question_rewriter = re_write_prompt | llm | StrOutputParser()
+
+
+        class AgentState(TypedDict):
+            question: str
+            generation: str
+            documents: List[str]
+            filter_documents: List[str]
+            unfilter_documents: List[str]
+
+
+        def retrieve(state:AgentState):
+            logger.info("[INFO] ----> ---- ROUTE -> VECTORSTORE RETRIEVE----")
+            question=state['question']
+            documents=retriever.get_relevant_documents(question)
+            return {"documents": documents, "question": question}
+
+
+        def grade_documents(state:AgentState):
+            logger.info("[INFO] ----> ---- CHECK DOCUMENTS RELEVANCE TO THE QUESTION ----")
+            question = state['question']
+            documents = state['documents']
+            
+            filtered_docs = []
+            unfiltered_docs = []
+
+            for doc in documents:
+                score=my_retrieval_grader.invoke({"question":question, "document":doc})
+                grade=score.binary_score
+                
+                if grade=='yes':
+                    logger.info("[INFO] ----> ---- GRADE: DOCUMENT RELEVANT ----")
+                    filtered_docs.append(doc)
+                else:
+                    logger.info("[INFO] ----> ----GRADE: DOCUMENT NOT RELEVANT----")
+                    unfiltered_docs.append(doc)
+            
+            if len(unfiltered_docs)>1:
+                return {"unfilter_documents": unfiltered_docs,"filter_documents":[], "question": question}
+            else:
+                return {"filter_documents": filtered_docs,"unfilter_documents":[],"question": question}
+                    
+
+        def decide_to_generate(state:AgentState):
+            logger.info("[INFO] ----> ---- ACCESS GRADED DOCUMENTS ----")
+            state["question"]
+            unfiltered_documents = state["unfilter_documents"]
+            filtered_documents = state["filter_documents"]
+            
+            if unfiltered_documents:
+                logger.info("[INFO] ----> ---- ALL THE DOCUMENTS ARE NOT RELEVANT TO QUESTION, TRANSFORMING THE QUERY ----")
+                return "transform_query"
+            if filtered_documents:
+                logger.info("[INFO] ----> RELEVANT DOCUMENTS ----DECISION: GENERATE ----")
+                return "generate"
+            
+
+        def generate(state:AgentState):
+            logger.info("[INFO] ----> ---- GENERATE ----")
+            question=state["question"]
+            documents=state["documents"]
+            
+            generation = rag_chain.invoke({"context": documents,"question":question})
+            return {"documents":documents,"question":question,"generation":generation}
+
+
+        def transform_query(state:AgentState):
+            question=state["question"]
+            documents=state["documents"]
+            
+            # logger.info(f"[INFO] ----> This is my document :- \n{documents}")
+            response = question_rewriter.invoke({"question":question,"documents":documents})
+            # logger.info(f"[INFO] ----> ---- RESPONSE ---- \n{response}")
+            if response == 'question not relevant':
+                logger.info("[INFO] ----> ---- QUESTION IS NOT AT ALL RELEVANT ----")
+                return {
+                    "documents":documents,
+                    "question":response,
+                    "generation":"question was not at all relevant"
+                }
+            else:   
+                return {"documents":documents,"question":response}
+            
+
+        def decide_to_generate_after_transformation(state:AgentState):
+            question=state["question"]
+            
+            if question=="question not relevant":
+                return "query_not_at_all_relevant"
+            else:
+                return "Retriever"
+            
+
+        def grade_generation_vs_documents_and_question(state:AgentState):
+            logger.info("[INFO] ---> --- CHECK HELLUCINATIONS ---")
+            question= state['question']
+            documents = state['documents']
+            generation = state["generation"]
+            
+            score = hallucinations_grader.invoke({"documents":documents,"generation":generation})
+            
+            grade = score.binary_score
+            
+            # Check hallucinations
+            if grade=='yes':
+                logger.info("[INFO] ---> --- DECISION: GENERATION IS GROUNDED IN DOCUMENTS ---")
+                
+                logger.info("[INFO] ---> --- GRADE GENERATION vs QUESTION ---")
+                
+                score = answer_grader.invoke({"question":question,"generation":generation})
+                
+                grade = score.binary_score
+                
+                if grade=='yes':
+                    logger.info("[INFO] ---> --- DECISION: GENERATION ADDRESS THE QUESTION ---")
+                    return "useful"
+                else:
+                    logger.info("[INFO] ---> --- DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY ---TRANSFORM QUERY")
+                    return "not useful"
+            else:
+                logger.info("[INFO] ---> --- DECISION: GENERATION IS NOT GROUNDED IN DOCUMENTS, RE-TRY ---TRANSFORM QUERY")
+                "not useful"
+            
+
+        workflow = StateGraph(AgentState)
+        workflow.add_node("Docs_Vector_Retrieve", retrieve)
+        workflow.add_node("Grading_Generated_Documents", grade_documents) 
+        workflow.add_node("Content_Generator", generate)
+        workflow.add_node("Transform_User_Query", transform_query)
+
+        workflow.add_edge(START,"Docs_Vector_Retrieve")
+        workflow.add_edge("Docs_Vector_Retrieve","Grading_Generated_Documents")
+
+        workflow.add_conditional_edges(
+            "Grading_Generated_Documents",
+            decide_to_generate,
+            {
+                "generate": "Content_Generator",
+                "transform_query": "Transform_User_Query"
+            }
+        )
+
+        workflow.add_conditional_edges(
+            "Content_Generator",
+            grade_generation_vs_documents_and_question,
+            {
+                "useful": END,
+                "not useful": "Transform_User_Query",
+            }
+        )
+
+        workflow.add_conditional_edges(
+            "Transform_User_Query",
+            decide_to_generate_after_transformation,
+            {
+                "Retriever":"Docs_Vector_Retrieve",
+                "query_not_at_all_relevant":END
+            }
+        )
+
+        app=workflow.compile()
+        return app
+    
+
+
+if __name__ == "__main__" :
+
+
+    data_dir = "Data"
+    vectorstore_dir = "vector-store\\AWS-Bedrock-API-Lambda-Glue-Opensearch-DB-Google-Embeddings"
+    top_k_documents = 5
+
+    llm, embeddings, vectorstore, logger = createVectorStoreAndLLMFunctionForPDFFiles(
+        data_path=data_dir, 
+        temperature=0.15, 
+        top_p=1, 
+        maximum_output_tokens=4096, 
+        chunk_length=724, 
+        chunk_overlap_length=128, 
+        llm_model_provider="Google",
+        embeddings_provider="Google", 
+        chroma_db_persist_directory=vectorstore_dir,
+    )
+
+    logger.info("[INFO] ----> Running the Adaptive RAG Inference......\n")
+    retriever = vectorstore.as_retriever(
+        search_type="similarity", 
+        search_kwargs={"k" : top_k_documents}
+    )
+
+    masterPrompt = """You are a senior AWS Solution Architect specializing in coding with Python and system design. 
+    Provide a detailed, structured explanation that includes architectural best practices, 
+    relevant AWS services, scalability and security considerations, cost optimization strategies, 
+    and real-world use cases or examples. Use diagrams or pseudocode if necessary. 
+    The goal is to provide a comprehensive, technically sound, and practical solution that could be used 
+    in a professional cloud architecture document. Always provide a complete answer to the question. 
+    So consult the following provided context and the user question. \n
+    Context:- {context}\n
+    Question:- {question}\n
+    """
+
+    agentWorkflow = createAgenticRAGAWSData(
+        agent_behavior_prompt=masterPrompt,
+        retriever=retriever,
+        llm_model=llm,
+        parse_function=True,
+        application_logger=logger,
+    )
+
+    user_question = """Guide me in developing a RAG solution that uses the AWS S3 for the accessing the 
+    data along with AWS Opensearch for the search and the AWS Lambda service for the development of the 
+    entire system.
+    """
+
+    inputs = {"question": user_question}
+    result = agentWorkflow.invoke(inputs)["generation"].content
+
+    print("-" * 100)
+    print("\n")
+    print("RESULT :- {}{}".format("\n", result))
+    print("\n")
+    print("-" * 100)
+
+    with open("Results\\Generated-Result-GE-1.txt", "w", encoding="utf-8") as fp :
+        fp.writelines(result)
+
+    logger.info("[INFO] ----> Pipeline execution completed....")
