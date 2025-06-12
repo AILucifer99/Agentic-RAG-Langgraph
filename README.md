@@ -5,11 +5,13 @@ Welcome to the **Agentic RAG System**, a Flask-based interactive interface that 
 
 ---
 Agentic RAG Home Page
+---
 ![Agentic RAG UI Home](./assets/interface.png)
 ---
 
 ---
 Agentic RAG Analytics Page
+---
 ![Agentic RAG UI Analytics](./assets/analytics.png)
 ---
 
