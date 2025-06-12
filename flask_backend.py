@@ -23,7 +23,7 @@ from dotenv import load_dotenv, find_dotenv
 from pydantic import BaseModel, Field
 
 app = Flask(__name__)
-app.secret_key = 'your-secret-key-here'
+app.secret_key = 'admin'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Global storage for analytics and chat sessions
