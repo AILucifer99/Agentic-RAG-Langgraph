@@ -1,5 +1,4 @@
 import logging
-from langgraph.graph import StateGraph, END
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_google_genai import (
     ChatGoogleGenerativeAI,
@@ -20,7 +19,7 @@ from dotenv import (
     load_dotenv, 
     find_dotenv
 )
-from pydantic import BaseModel, Field
+
 import os
 import warnings
 warnings.filterwarnings("ignore")
